@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MXT — Licenças</title>
+<style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: radial-gradient(circle at top, #2a1245 0%, #120a20 60%, #0b0714 100%);
+        color: #f1f1f6;
+        min-height: 100vh;
+        padding: 32px 20px 60px;
+    }
+    .wrap { max-width: 980px; margin: 0 auto; }
+    h1 { font-size: 20px; margin: 0 0 4px; display: flex; align-items: center; gap: 10px; }
+    .sub { color: rgba(255,255,255,.55); font-size: 13px; margin: 0 0 24px; }
+    .card {
+        background: rgba(255,255,255,.04);
+        border: 1px solid rgba(255,255,255,.08);
+        border-radius: 14px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .card h2 { font-size: 14px; margin: 0 0 14px; color: #d8b4fe; text-transform: uppercase; letter-spacing: .06em; }
+    label { display: block; font-size: 12px; color: rgba(255,255,255,.6); margin-bottom: 5px; }
+    input[type=text], input[type=date], select {
+        width: 100%;
+        background: rgba(0,0,0,.3);
+        border: 1px solid rgba(255,255,255,.12);
+        border-radius: 8px;
+        padding: 9px 11px;
+        color: #fff;
+        font-size: 13px;
+        margin-bottom: 12px;
+    }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .row > div { flex: 1; min-width: 140px; }
+    .chk-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .chk-row input { width: auto; margin: 0; }
+    button {
+        cursor: pointer; border: none; border-radius: 8px; font-size: 12.5px; font-weight: 600;
+        padding: 9px 14px; transition: opacity .15s;
+    }
+    button:hover { opacity: .85; }
+    .btn-primary { background: linear-gradient(120deg,#9333ea,#ec4899); color: #fff; }
+    .btn-ghost { background: rgba(255,255,255,.08); color: #e5e5f5; }
+    .btn-danger { background: rgba(239,68,68,.15); color: #fca5a5; border: 1px solid rgba(239,68,68,.35); }
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid rgba(255,255,255,.06); vertical-align: middle; }
+    th { color: rgba(255,255,255,.5); font-weight: 600; text-transform: uppercase; font-size: 10.5px; letter-spacing: .04em; }
+    code { background: rgba(255,255,255,.08); padding: 2px 6px; border-radius: 5px; font-size: 12px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .badge.active { background: rgba(34,197,94,.15); color: #4ade80; }
+    .badge.suspended { background: rgba(234,179,8,.15); color: #facc15; }
+    .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .actions button { padding: 5px 9px; font-size: 11.5px; }
+    #gate { display: flex; align-items: center; justify-content: center; min-height: 60vh; }
+    #gate .card { width: 360px; }
+    .msg { font-size: 12px; margin-top: 8px; min-height: 16px; }
+    .msg.err { color: #fca5a5; }
+    .msg.ok { color: #4ade80; }
+    .empty { color: rgba(255,255,255,.4); font-size: 12.5px; padding: 20px 0; text-align: center; }
+</style>
+</head>
+<body>
+
+<div id="gate">
+    <div class="card">
+        <h2>Acesso admin</h2>
+        <label>Token de administração</label>
+        <input type="text" id="tokenInput" placeholder="Cole o ADMIN_TOKEN">
+        <button class="btn-primary" onclick="mxtSaveToken()">Entrar</button>
+        <div class="msg" id="gateMsg"></div>
+    </div>
+</div>
+
+<div class="wrap" id="app" style="display:none">
+    <h1>🔑 Licenças — Extend LP / Bio Single</h1>
+    <p class="sub">Gerencie as licenças de IA usadas pelo plugin em cada site de cliente.</p>
+
+    <div class="card">
+        <h2>Nova licença</h2>
+        <div class="row">
+            <div>
+                <label>Cliente</label>
+                <input type="text" id="f_client" placeholder="Ex: Barbearia do João">
+            </div>
+            <div>
+                <label>Plano</label>
+                <select id="f_plan">
+                    <option value="basic">basic</option>
+                    <option value="pro">pro</option>
+                </select>
+            </div>
+            <div>
+                <label>Expira em (opcional)</label>
+                <input type="date" id="f_expires">
+            </div>
+        </div>
+        <div class="chk-row">
+            <input type="checkbox" id="f_lock">
+            <label style="margin:0" for="f_lock">Travar no primeiro domínio que verificar (recomendado)</label>
+        </div>
+        <button class="btn-primary" onclick="mxtCreateLicense()">Gerar licença</button>
+        <div class="msg" id="createMsg"></div>
+    </div>
+
+    <div class="card">
+        <h2>Licenças</h2>
+        <div id="tableWrap"><div class="empty">Carregando…</div></div>
+    </div>
+</div>
+
+<script>
+const TOKEN_KEY = 'mxt_admin_token';
+
+function mxtGetToken() { return localStorage.getItem(TOKEN_KEY) || ''; }
+
+function mxtSaveToken() {
+    const val = document.getElementById('tokenInput').value.trim();
+    if (!val) return;
+    localStorage.setItem(TOKEN_KEY, val);
+    mxtBoot();
+}
+
+function mxtEscape(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+}
+
+async function mxtApi(path, options) {
+    options = options || {};
+    options.headers = Object.assign({ 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + mxtGetToken() }, options.headers || {});
+    const resp = await fetch(path, options);
+    if (resp.status === 401) {
+        localStorage.removeItem(TOKEN_KEY);
+        document.getElementById('gateMsg').textContent = 'Token inválido ou expirado.';
+        document.getElementById('gateMsg').className = 'msg err';
+        document.getElementById('app').style.display = 'none';
+        document.getElementById('gate').style.display = 'flex';
+        throw new Error('unauthorized');
+    }
+    return resp;
+}
+
+async function mxtLoadLicenses() {
+    const wrap = document.getElementById('tableWrap');
+    try {
+        const resp = await mxtApi('/api/admin/licenses');
+        const data = await resp.json();
+        const list = data.licenses || [];
+        if (!list.length) {
+            wrap.innerHTML = '<div class="empty">Nenhuma licença criada ainda.</div>';
+            return;
+        }
+        const rows = list.map((l) => {
+            const badge = l.status === 'active' ? 'active' : 'suspended';
+            const badgeLabel = l.status === 'active' ? 'Ativa' : 'Suspensa';
+            const toggleLabel = l.status === 'active' ? 'Suspender' : 'Ativar';
+            const domain = l.bound_domain ? mxtEscape(l.bound_domain) : (l.lock_domain ? '<span style="opacity:.5">(aguardando)</span>' : '<span style="opacity:.4">livre</span>');
+            const expires = l.expires_at ? mxtEscape(l.expires_at) : '<span style="opacity:.4">nunca</span>';
+            return `<tr>
+                <td><code>${mxtEscape(l.license_key)}</code> <button class="btn-ghost" onclick="mxtCopy('${l.license_key}')">Copiar</button></td>
+                <td>${mxtEscape(l.client_name) || '<span style="opacity:.4">—</span>'}</td>
+                <td>${mxtEscape(l.plan)}</td>
+                <td><span class="badge ${badge}">${badgeLabel}</span></td>
+                <td>${domain}</td>
+                <td>${expires}</td>
+                <td class="actions">
+                    <button class="btn-ghost" onclick="mxtToggleStatus('${l.license_key}','${l.status}')">${toggleLabel}</button>
+                    <button class="btn-ghost" onclick="mxtResetDomain('${l.license_key}')" ${l.bound_domain ? '' : 'disabled'}>Resetar domínio</button>
+                    <button class="btn-danger" onclick="mxtDeleteLicense('${l.license_key}')">Excluir</button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        wrap.innerHTML = `<table>
+            <thead><tr><th>Chave</th><th>Cliente</th><th>Plano</th><th>Status</th><th>Domínio</th><th>Expira</th><th>Ações</th></tr></thead>
+            <tbody>${rows}</tbody>
+        </table>`;
+    } catch (e) {
+        if (e.message !== 'unauthorized') wrap.innerHTML = '<div class="empty">Erro ao carregar licenças.</div>';
+    }
+}
+
+async function mxtCreateLicense() {
+    const msg = document.getElementById('createMsg');
+    const client_name = document.getElementById('f_client').value.trim();
+    const plan = document.getElementById('f_plan').value;
+    const expires_at = document.getElementById('f_expires').value || null;
+    const lock_domain = document.getElementById('f_lock').checked;
+
+    try {
+        const resp = await mxtApi('/api/admin/licenses', {
+            method: 'POST',
+            body: JSON.stringify({ client_name, plan, expires_at, lock_domain }),
+        });
+        if (!resp.ok) throw new Error('falha');
+        document.getElementById('f_client').value = '';
+        document.getElementById('f_expires').value = '';
+        document.getElementById('f_lock').checked = false;
+        msg.textContent = 'Licença criada!';
+        msg.className = 'msg ok';
+        mxtLoadLicenses();
+    } catch (e) {
+        if (e.message === 'unauthorized') return;
+        msg.textContent = 'Erro ao criar licença.';
+        msg.className = 'msg err';
+    }
+}
+
+async function mxtToggleStatus(key, currentStatus) {
+    const next = currentStatus === 'active' ? 'suspended' : 'active';
+    await mxtApi('/api/admin/licenses/' + encodeURIComponent(key), {
+        method: 'PATCH',
+        body: JSON.stringify({ status: next }),
+    });
+    mxtLoadLicenses();
+}
+
+async function mxtResetDomain(key) {
+    await mxtApi('/api/admin/licenses/' + encodeURIComponent(key), {
+        method: 'PATCH',
+        body: JSON.stringify({ reset_domain: true }),
+    });
+    mxtLoadLicenses();
+}
+
+async function mxtDeleteLicense(key) {
+    if (!confirm('Excluir esta licença? Essa ação não pode ser desfeita.')) return;
+    await mxtApi('/api/admin/licenses/' + encodeURIComponent(key), { method: 'DELETE' });
+    mxtLoadLicenses();
+}
+
+function mxtCopy(text) {
+    navigator.clipboard && navigator.clipboard.writeText(text);
+}
+
+function mxtBoot() {
+    const token = mxtGetToken();
+    if (!token) return;
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    mxtLoadLicenses();
+}
+
+mxtBoot();
+</script>
+</body>
+</html>
