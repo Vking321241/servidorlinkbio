@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const adminAuth = require('../middleware/adminAuth');
+const { adminAuth } = require('../middleware/adminAuth');
 const { listLicenses, createLicense, updateLicense, deleteLicense } = require('../lib/licenses');
 
 router.use(adminAuth);

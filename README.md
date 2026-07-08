@@ -13,7 +13,9 @@ ele por HTTP.
 - `POST /api/ai-chat` — o plugin repassa a pergunta do visitante da bio page
   pra cá; este servidor valida a licença, chama a IA (Anthropic) e devolve a
   resposta + os cartões/links mais relevantes.
-- `/admin` — painel simples para você criar, suspender e excluir licenças.
+- `POST /api/admin/login` — login do painel (usuário + senha via env vars).
+- `/admin` — painel para você criar, suspender e excluir licenças (protegido
+  por login e senha).
 
 A chave da Anthropic (`ANTHROPIC_API_KEY`) fica só aqui no servidor — nunca no
 plugin nem no site do cliente.
@@ -23,12 +25,12 @@ plugin nem no site do cliente.
 ```bash
 npm install
 cp .env.example .env
-# edite o .env: defina ADMIN_TOKEN e ANTHROPIC_API_KEY
+# edite o .env: defina ADMIN_USER, ADMIN_PASSWORD e ANTHROPIC_API_KEY
 npm run dev
 ```
 
-Acesse `http://localhost:3000/admin`, cole o `ADMIN_TOKEN` que você definiu no
-`.env` e crie sua primeira licença.
+Acesse `http://localhost:3000/admin`, entre com o usuário e a senha definidos
+no `.env` e crie sua primeira licença.
 
 ## Deploy em Docker / EasyPanel
 
@@ -37,7 +39,9 @@ Acesse `http://localhost:3000/admin`, cole o `ADMIN_TOKEN` que você definiu no
 2. No EasyPanel, crie um novo serviço do tipo **App** apontando para esse
    repositório (ele detecta o `Dockerfile` automaticamente).
 3. Configure as variáveis de ambiente do serviço:
-   - `ADMIN_TOKEN` — gere um valor longo e aleatório (ex: `openssl rand -hex 32`)
+   - `ADMIN_USER` — usuário de login do painel `/admin`
+   - `ADMIN_PASSWORD` — senha do painel (use uma senha forte; trocá-la derruba
+     todas as sessões abertas)
    - `ANTHROPIC_API_KEY` — sua chave da Anthropic
    - `ANTHROPIC_MODEL` — opcional, padrão `claude-haiku-4-5-20251001`
    - `AI_RATE_LIMIT_PER_HOUR` — opcional, padrão `30`
@@ -81,9 +85,10 @@ src/
   index.js              # servidor Express
   db.js                 # persistência em arquivo JSON (data/licenses.json)
   lib/licenses.js        # regras de licença (criar, verificar, travar domínio)
-  middleware/adminAuth.js
+  middleware/adminAuth.js # login/sessão do painel (ADMIN_USER + ADMIN_PASSWORD)
   routes/license.js      # POST /api/license/verify (público)
-  routes/adminLicenses.js # CRUD de licenças (protegido por ADMIN_TOKEN)
+  routes/adminLogin.js   # POST /api/admin/login (usuário + senha → token de sessão)
+  routes/adminLicenses.js # CRUD de licenças (protegido por sessão)
   routes/aiChat.js       # POST /api/ai-chat (público, exige licença válida)
 public/admin/index.html  # painel de administração de licenças
 ```
