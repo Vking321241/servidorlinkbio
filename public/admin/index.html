@@ -167,12 +167,17 @@ async function mxtLogin(ev) {
             body: JSON.stringify({ username, password }),
         });
         if (resp.status === 429) {
-            msg.textContent = 'Muitas tentativas — aguarde alguns minutos.';
+            msg.textContent = 'Muitas tentativas — aguarde 15 minutos.';
+            msg.className = 'msg err';
+            return;
+        }
+        if (resp.status === 401) {
+            msg.textContent = 'Usuário ou senha incorretos (veja o motivo exato no log do servidor).';
             msg.className = 'msg err';
             return;
         }
         if (!resp.ok) {
-            msg.textContent = 'Usuário ou senha incorretos.';
+            msg.textContent = 'Erro inesperado do servidor (HTTP ' + resp.status + ').';
             msg.className = 'msg err';
             return;
         }

@@ -49,10 +49,22 @@ function adminPassword() { return cleanEnv(process.env.ADMIN_PASSWORD); }
 function checkCredentials(username, password) {
     const user = adminUser();
     const pass = adminPassword();
-    if (!user || !pass) return false;
+    if (!user || !pass) {
+        console.warn('[login] tentativa recusada: ADMIN_USER/ADMIN_PASSWORD não configurados no ambiente.');
+        return false;
+    }
+    const givenUser = String(username || '').trim();
+    const givenPass = String(password || '');
     // Avalia os dois sempre, para não vazar qual campo errou via timing.
-    const userOk = safeEqual(String(username || '').trim(), user);
-    const passOk = safeEqual(String(password || ''), pass);
+    const userOk = safeEqual(givenUser, user);
+    const passOk = safeEqual(givenPass, pass) || safeEqual(givenPass.trim(), pass);
+    if (!userOk || !passOk) {
+        // Diagnóstico no log do servidor (nunca imprime a senha em si).
+        console.warn(
+            `[login] tentativa recusada: usuário ${userOk ? 'OK' : `NÃO bateu (informado "${givenUser}", esperado "${user}")`}` +
+            ` · senha ${passOk ? 'OK' : `NÃO bateu (informada com ${givenPass.length} caracteres, esperada com ${pass.length})`}`
+        );
+    }
     return userOk && passOk;
 }
 
