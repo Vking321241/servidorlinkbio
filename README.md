@@ -45,27 +45,41 @@ npm run dev
 Acesse `http://localhost:3000/admin`, entre com o usuário e a senha definidos
 no `.env`, configure o provedor de IA e crie sua primeira licença.
 
-## Deploy em Docker / EasyPanel
+## Deploy no EasyPanel (passo a passo exato)
 
-1. Suba esta pasta (`mxt-license-server/`) para um repositório Git próprio
-   (não misture com o repositório do plugin).
-2. No EasyPanel, crie um novo serviço do tipo **App** apontando para esse
-   repositório (ele detecta o `Dockerfile` automaticamente).
-3. Configure as variáveis de ambiente do serviço:
-   - `ADMIN_USER` — usuário de login do painel `/admin`
-   - `ADMIN_PASSWORD` — senha do painel (use uma senha forte; trocá-la derruba
-     todas as sessões abertas)
-   - `AI_RATE_LIMIT_PER_HOUR` — opcional, padrão `30`
+O repositório já vai pronto (Dockerfile, healthcheck, porta 3000). No
+EasyPanel você só preenche o que é configuração da sua VPS:
 
-   A chave do provedor de IA NÃO vai em variável de ambiente — configure pelo
-   painel `/admin` depois do deploy.
-4. Monte um **volume persistente** em `/app/data` (é onde fica o arquivo
-   `licenses.json` com as licenças cadastradas — sem isso, um redeploy apaga
-   tudo).
-5. Exponha a porta `3000` com um domínio/subdomínio próprio, com HTTPS (ex:
-   `https://ia.suaagencia.com.br`).
+1. **Criar o serviço**: no seu projeto → **+ Service** → **App**.
+2. **Source (código)**:
+   - Owner/Repository: `Vking321241/servidorlinkbio`
+   - Branch: `main`
+   - Build Path: `/`
+3. **Build**: selecione **Dockerfile** (arquivo: `Dockerfile`).
+4. **Environment** — adicione exatamente estas variáveis:
+   ```
+   ADMIN_USER=seu-usuario
+   ADMIN_PASSWORD=sua-senha-forte
+   ```
+   (`AI_RATE_LIMIT_PER_HOUR` é opcional, padrão 30. A chave do provedor de IA
+   NÃO vai aqui — ela é configurada depois, pela interface do painel.)
+5. **Mounts** — adicione um mount do tipo **Volume**:
+   - Name: `dados`
+   - Mount Path: `/app/data`
+   (sem isso, um redeploy apaga as licenças e a configuração de IA)
+6. **Domains** — adicione seu domínio/subdomínio (ex: `ia.suaagencia.com.br`)
+   apontando para a porta **3000**, com HTTPS ativado.
+7. Clique em **Deploy** e aguarde o build.
+8. Acesse `https://seu-dominio/admin`, faça login com o usuário/senha do
+   passo 4, configure o provedor de IA (card "Inteligência Artificial") e
+   crie as licenças.
 
-Se preferir Docker Compose puro na VPS (sem EasyPanel):
+**Auto-deploy (opcional):** no serviço do EasyPanel, aba **Deployments**,
+copie a **Webhook URL**; no GitHub, em *Settings → Webhooks → Add webhook*,
+cole a URL com content type `application/json` e evento *push*. Aí todo
+`git push` rebuilda sozinho.
+
+## Docker Compose (alternativa sem EasyPanel)
 
 ```bash
 cp .env.example .env
