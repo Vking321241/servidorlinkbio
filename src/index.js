@@ -5,6 +5,7 @@ const express = require('express');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
+const { adminUser, adminPassword } = require('./middleware/adminAuth');
 const licenseRoutes = require('./routes/license');
 const adminLoginRoutes = require('./routes/adminLogin');
 const adminLicenseRoutes = require('./routes/adminLicenses');
@@ -53,7 +54,11 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`mxt-license-server ouvindo na porta ${PORT}`);
-    if (!process.env.ADMIN_USER || !process.env.ADMIN_PASSWORD) {
+    const user = adminUser();
+    const pass = adminPassword();
+    if (!user || !pass) {
         console.warn('[AVISO] ADMIN_USER e/ou ADMIN_PASSWORD não configurados — o login do painel /admin ficará bloqueado até definir essas variáveis de ambiente.');
+    } else {
+        console.log(`[login] usuário do painel: "${user}" · senha carregada com ${pass.length} caracteres`);
     }
 });

@@ -12,7 +12,7 @@ function safeEqual(a, b) {
 function secret() {
     return crypto
         .createHash('sha256')
-        .update('mxt-session:' + String(process.env.ADMIN_PASSWORD || ''))
+        .update('mxt-session:' + adminPassword())
         .digest();
 }
 
@@ -33,12 +33,25 @@ function verifyToken(token) {
     return safeEqual(parts[1], sign(exp));
 }
 
+// Painéis de env var (EasyPanel etc.) costumam deixar passar aspas e espaços
+// junto do valor — "senha" vira literalmente "senha" com aspas. Normaliza.
+function cleanEnv(val) {
+    let v = String(val || '').trim();
+    if (v.length >= 2 && ((v[0] === '"' && v[v.length - 1] === '"') || (v[0] === "'" && v[v.length - 1] === "'"))) {
+        v = v.slice(1, -1).trim();
+    }
+    return v;
+}
+
+function adminUser() { return cleanEnv(process.env.ADMIN_USER); }
+function adminPassword() { return cleanEnv(process.env.ADMIN_PASSWORD); }
+
 function checkCredentials(username, password) {
-    const user = process.env.ADMIN_USER || '';
-    const pass = process.env.ADMIN_PASSWORD || '';
+    const user = adminUser();
+    const pass = adminPassword();
     if (!user || !pass) return false;
     // Avalia os dois sempre, para não vazar qual campo errou via timing.
-    const userOk = safeEqual(String(username || ''), user);
+    const userOk = safeEqual(String(username || '').trim(), user);
     const passOk = safeEqual(String(password || ''), pass);
     return userOk && passOk;
 }
@@ -52,4 +65,4 @@ function adminAuth(req, res, next) {
     next();
 }
 
-module.exports = { adminAuth, issueToken, checkCredentials };
+module.exports = { adminAuth, issueToken, checkCredentials, adminUser, adminPassword };
