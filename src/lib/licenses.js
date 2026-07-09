@@ -58,11 +58,19 @@ function deleteLicense(key) {
     return db.licenses.length < before;
 }
 
+// www.site.com e site.com são o mesmo site pro dono, mas strings diferentes
+// — sem isso, testar a licença com/sem "www" trava no domínio errado e a
+// licença passa a ser recusada silenciosamente no domínio real.
+function normalizeDomain(domain) {
+    return String(domain || '').trim().toLowerCase().replace(/^www\./, '');
+}
+
 // Regra de verificação usada tanto por /api/license/verify quanto por /api/ai-chat.
 // Quando lock_domain está ativo, o primeiro domínio a verificar com sucesso
 // "trava" a licença; chamadas de outro domínio depois disso são recusadas.
 function verifyLicense(license_key, domain) {
     if (!license_key || !domain) return { valid: false, reason: 'invalid' };
+    const normDomain = normalizeDomain(domain);
 
     const lic = findLicense(license_key);
     if (!lic) return { valid: false, reason: 'invalid' };
@@ -72,9 +80,10 @@ function verifyLicense(license_key, domain) {
     }
 
     if (lic.lock_domain) {
-        if (!lic.bound_domain) {
-            updateLicense(license_key, { bound_domain: domain });
-        } else if (lic.bound_domain !== domain) {
+        const boundNorm = normalizeDomain(lic.bound_domain);
+        if (!boundNorm) {
+            updateLicense(license_key, { bound_domain: normDomain });
+        } else if (boundNorm !== normDomain) {
             return { valid: false, reason: 'domain_mismatch' };
         }
     }
