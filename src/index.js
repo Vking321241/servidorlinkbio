@@ -29,6 +29,7 @@ app.use(
     })
 );
 
+app.get('/', (req, res) => res.redirect('/admin/'));
 app.get('/health', (req, res) => res.json({ ok: true }));
 
 app.use('/api/license', licenseRoutes);
