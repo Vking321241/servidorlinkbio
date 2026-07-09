@@ -90,6 +90,31 @@
     <p class="sub">Gerencie as licenças de IA usadas pelo plugin em cada site de cliente.</p>
 
     <div class="card">
+        <h2>Inteligência Artificial</h2>
+        <div class="row">
+            <div>
+                <label>Provedor</label>
+                <select id="ai_provider" onchange="mxtProviderChanged()">
+                    <option value="gemini">Google Gemini</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="groq">Groq</option>
+                </select>
+            </div>
+            <div>
+                <label>Modelo</label>
+                <input type="text" id="ai_model" placeholder="ex: gemini-2.0-flash">
+            </div>
+        </div>
+        <label>Chave de API</label>
+        <input type="password" id="ai_key" autocomplete="off" placeholder="Cole a chave do provedor selecionado">
+        <div style="display:flex;gap:8px">
+            <button class="btn-primary" onclick="mxtSaveAi()">Salvar IA</button>
+            <button class="btn-ghost" onclick="mxtTestAi(this)">Testar conexão</button>
+        </div>
+        <div class="msg" id="aiMsg"></div>
+    </div>
+
+    <div class="card">
         <h2>Nova licença</h2>
         <div class="row">
             <div>
@@ -187,6 +212,81 @@ async function mxtApi(path, options) {
         throw new Error('unauthorized');
     }
     return resp;
+}
+
+// ── CONFIGURAÇÃO DE IA ─────────────────────────────────────────────────
+let mxtAiSettings = null;
+
+function mxtProviderChanged() {
+    const p = document.getElementById('ai_provider').value;
+    const conf = mxtAiSettings && mxtAiSettings.providers ? mxtAiSettings.providers[p] : null;
+    document.getElementById('ai_model').value = conf ? conf.model : '';
+    const keyInput = document.getElementById('ai_key');
+    keyInput.value = '';
+    keyInput.placeholder = conf && conf.has_key
+        ? 'Configurada (' + conf.key_hint + ') — preencha só para trocar'
+        : 'Cole a chave do provedor selecionado';
+}
+
+async function mxtLoadAi() {
+    try {
+        const resp = await mxtApi('/api/admin/settings');
+        const data = await resp.json();
+        mxtAiSettings = data.settings;
+        document.getElementById('ai_provider').value = mxtAiSettings.ai_provider;
+        mxtProviderChanged();
+    } catch (e) { /* 401 já tratado no mxtApi */ }
+}
+
+async function mxtSaveAi() {
+    const msg = document.getElementById('aiMsg');
+    const provider = document.getElementById('ai_provider').value;
+    const body = {
+        ai_provider: provider,
+        providers: {
+            [provider]: {
+                model: document.getElementById('ai_model').value.trim(),
+                api_key: document.getElementById('ai_key').value.trim(),
+            },
+        },
+    };
+    try {
+        const resp = await mxtApi('/api/admin/settings', { method: 'PUT', body: JSON.stringify(body) });
+        const data = await resp.json();
+        mxtAiSettings = data.settings;
+        mxtProviderChanged();
+        msg.textContent = 'Configuração de IA salva.';
+        msg.className = 'msg ok';
+    } catch (e) {
+        if (e.message === 'unauthorized') return;
+        msg.textContent = 'Erro ao salvar configuração.';
+        msg.className = 'msg err';
+    }
+}
+
+async function mxtTestAi(btn) {
+    const msg = document.getElementById('aiMsg');
+    msg.textContent = 'Testando conexão…';
+    msg.className = 'msg';
+    btn.disabled = true;
+    try {
+        const resp = await mxtApi('/api/admin/settings/test', { method: 'POST' });
+        const data = await resp.json();
+        if (data.ok) {
+            msg.textContent = '✔ ' + data.provider + ' (' + data.model + '): ' + data.reply;
+            msg.className = 'msg ok';
+        } else {
+            msg.textContent = '✖ ' + (data.error || 'Falha no teste.');
+            msg.className = 'msg err';
+        }
+    } catch (e) {
+        if (e.message !== 'unauthorized') {
+            msg.textContent = 'Erro de conexão ao testar.';
+            msg.className = 'msg err';
+        }
+    } finally {
+        btn.disabled = false;
+    }
 }
 
 async function mxtLoadLicenses() {
@@ -287,6 +387,7 @@ function mxtBoot() {
     if (!token) return;
     document.getElementById('gate').style.display = 'none';
     document.getElementById('app').style.display = 'block';
+    mxtLoadAi();
     mxtLoadLicenses();
 }
 

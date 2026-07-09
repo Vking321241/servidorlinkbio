@@ -10,8 +10,6 @@ services:
       - PORT=3000
       - ADMIN_USER=${ADMIN_USER}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-haiku-4-5-20251001}
       - AI_RATE_LIMIT_PER_HOUR=${AI_RATE_LIMIT_PER_HOUR:-30}
       - DB_PATH=/app/data/licenses.json
     volumes:

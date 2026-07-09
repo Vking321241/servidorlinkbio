@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 const licenseRoutes = require('./routes/license');
 const adminLoginRoutes = require('./routes/adminLogin');
 const adminLicenseRoutes = require('./routes/adminLicenses');
+const adminSettingsRoutes = require('./routes/adminSettings');
 const aiChatRoutes = require('./routes/aiChat');
 
 const app = express();
@@ -33,6 +34,7 @@ app.get('/health', (req, res) => res.json({ ok: true }));
 app.use('/api/license', licenseRoutes);
 app.use('/api/admin/login', adminLoginRoutes);
 app.use('/api/admin/licenses', adminLicenseRoutes);
+app.use('/api/admin/settings', adminSettingsRoutes);
 app.use('/api/ai-chat', aiChatRoutes);
 
 app.use('/admin', express.static(path.join(__dirname, '..', 'public', 'admin')));

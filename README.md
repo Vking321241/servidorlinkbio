@@ -11,26 +11,39 @@ ele por HTTP.
   `wp_remote_post`) para saber se a chave de licença configurada no site do
   cliente está ativa.
 - `POST /api/ai-chat` — o plugin repassa a pergunta do visitante da bio page
-  pra cá; este servidor valida a licença, chama a IA (Anthropic) e devolve a
-  resposta + os cartões/links mais relevantes.
+  pra cá; este servidor valida a licença, chama o provedor de IA configurado
+  e devolve a resposta + os cartões/links mais relevantes.
 - `POST /api/admin/login` — login do painel (usuário + senha via env vars).
-- `/admin` — painel para você criar, suspender e excluir licenças (protegido
-  por login e senha).
+- `/admin` — painel para você criar, suspender e excluir licenças e
+  **configurar o provedor de IA** (protegido por login e senha).
 
-A chave da Anthropic (`ANTHROPIC_API_KEY`) fica só aqui no servidor — nunca no
-plugin nem no site do cliente.
+## Provedores de IA suportados
+
+O provedor, o modelo e a chave de API são configurados **pela interface do
+painel `/admin`** (card "Inteligência Artificial") — nada de variável de
+ambiente para isso. Suportados:
+
+| Provedor | Modelo padrão |
+|---|---|
+| Google Gemini | `gemini-2.0-flash` |
+| OpenAI | `gpt-4o-mini` |
+| Groq | `llama-3.3-70b-versatile` |
+
+A chave fica guardada só no servidor (arquivo `data/licenses.json`, no volume
+persistente) — nunca no plugin nem no site do cliente. Use o botão **Testar
+conexão** no painel para validar chave + modelo antes de usar.
 
 ## Rodando localmente
 
 ```bash
 npm install
 cp .env.example .env
-# edite o .env: defina ADMIN_USER, ADMIN_PASSWORD e ANTHROPIC_API_KEY
+# edite o .env: defina ADMIN_USER e ADMIN_PASSWORD
 npm run dev
 ```
 
 Acesse `http://localhost:3000/admin`, entre com o usuário e a senha definidos
-no `.env` e crie sua primeira licença.
+no `.env`, configure o provedor de IA e crie sua primeira licença.
 
 ## Deploy em Docker / EasyPanel
 
@@ -42,9 +55,10 @@ no `.env` e crie sua primeira licença.
    - `ADMIN_USER` — usuário de login do painel `/admin`
    - `ADMIN_PASSWORD` — senha do painel (use uma senha forte; trocá-la derruba
      todas as sessões abertas)
-   - `ANTHROPIC_API_KEY` — sua chave da Anthropic
-   - `ANTHROPIC_MODEL` — opcional, padrão `claude-haiku-4-5-20251001`
    - `AI_RATE_LIMIT_PER_HOUR` — opcional, padrão `30`
+
+   A chave do provedor de IA NÃO vai em variável de ambiente — configure pelo
+   painel `/admin` depois do deploy.
 4. Monte um **volume persistente** em `/app/data` (é onde fica o arquivo
    `licenses.json` com as licenças cadastradas — sem isso, um redeploy apaga
    tudo).
@@ -85,10 +99,13 @@ src/
   index.js              # servidor Express
   db.js                 # persistência em arquivo JSON (data/licenses.json)
   lib/licenses.js        # regras de licença (criar, verificar, travar domínio)
+  lib/settings.js        # configurações de IA (provedor, modelo, chave)
+  lib/aiProviders.js     # adaptador Gemini / OpenAI / Groq
   middleware/adminAuth.js # login/sessão do painel (ADMIN_USER + ADMIN_PASSWORD)
   routes/license.js      # POST /api/license/verify (público)
   routes/adminLogin.js   # POST /api/admin/login (usuário + senha → token de sessão)
   routes/adminLicenses.js # CRUD de licenças (protegido por sessão)
+  routes/adminSettings.js # config de IA + teste de conexão (protegido por sessão)
   routes/aiChat.js       # POST /api/ai-chat (público, exige licença válida)
-public/admin/index.html  # painel de administração de licenças
+public/admin/index.html  # painel: config de IA + administração de licenças
 ```

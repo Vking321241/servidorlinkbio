@@ -1,9 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const Anthropic = require('@anthropic-ai/sdk');
 const { verifyLicense } = require('../lib/licenses');
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const { getSettings } = require('../lib/settings');
+const { chatCompletion } = require('../lib/aiProviders');
 
 // Rate limit simples por licença (em memória — reinicia com o processo).
 const rlMap = new Map();
@@ -76,7 +75,11 @@ router.post('/', async (req, res) => {
     if (!checkRateLimit(license_key)) {
         return res.status(429).json({ success: false, reason: 'rate_limit' });
     }
-    if (!process.env.ANTHROPIC_API_KEY) {
+
+    const settings = getSettings();
+    const provider = settings.ai_provider;
+    const conf = settings.providers[provider];
+    if (!conf || !conf.api_key) {
         return res.status(500).json({ success: false, reason: 'not_configured' });
     }
 
@@ -84,14 +87,13 @@ router.post('/', async (req, res) => {
     const systemPrompt = buildSystemPrompt(cards, briefing);
 
     try {
-        const resp = await anthropic.messages.create({
-            model: process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001',
-            max_tokens: 300,
+        const raw = await chatCompletion(provider, {
+            apiKey: conf.api_key,
+            model: conf.model,
             system: systemPrompt,
-            messages: [{ role: 'user', content: trimmedMessage }],
+            user: trimmedMessage,
         });
 
-        const raw = resp.content && resp.content[0] && resp.content[0].type === 'text' ? resp.content[0].text : '';
         const parsed = parseModelReply(raw);
 
         if (!parsed || !parsed.reply) {
@@ -109,7 +111,7 @@ router.post('/', async (req, res) => {
 
         return res.json({ success: true, reply: String(parsed.reply).slice(0, 500), card_indices: cardIndices });
     } catch (err) {
-        console.error('[ai-chat] erro ao chamar a Anthropic:', err.message);
+        console.error(`[ai-chat] erro no provedor ${provider}:`, err.message);
         return res.status(502).json({ success: false, reason: 'api_error' });
     }
 });
